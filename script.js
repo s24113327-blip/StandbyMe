@@ -1,22 +1,25 @@
-let scene, camera, renderer, bottle, ring, rope, rainSystem, lightFlash;
+let scene, camera, renderer, bottle, ring, rope, lightFlash, bottleMaterial;
 let clock = new THREE.Clock();
 
 const gameState = {
     level: 1, lives: 3, score: 0,
-    // -1.57 is laying flat, 0 is standing upright
-    bottleAngle: -1.57, bottleX: 0, bottleVX: 0,
+    bottleAngle: -1.57, bottleX: 0,
     windForce: 0, windTarget: 0,
     isHooked: false, paused: false,
+    timeLeft: 20, maxTime: 20,
     ringPos: new THREE.Vector3(0, 3, 0),
     ringVel: new THREE.Vector3(0, 0, 0),
-    mousePos: new THREE.Vector2()
+    mousePos: new THREE.Vector2(),
+    skins: {
+        1: { name: "EMERALD", color: 0x10b981, emissive: 0x064e3b },
+        5: { name: "SAPPHIRE", color: 0x0077ff, emissive: 0x002244 },
+        10: { name: "RUBY", color: 0xff0044, emissive: 0x440011 }
+    }
 };
 
 function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020205);
-    scene.fog = new THREE.FogExp2(0x020205, 0.1);
-
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -24,158 +27,127 @@ function init() {
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambient);
-    
     lightFlash = new THREE.PointLight(0xffffff, 0, 50);
     lightFlash.position.set(0, 5, 2);
     scene.add(lightFlash);
 
     createWorld();
     updateUI();
+    updateLevelList();
     animate();
 }
 
 function createWorld() {
-    // 3D Table
-    const tableGeo = new THREE.BoxGeometry(12, 0.4, 4);
-    const tableMat = new THREE.MeshStandardMaterial({ 
-        color: 0x00f2ff, 
-        emissive: 0x002233,
-        roughness: 0.1 
-    });
-    const table = new THREE.Mesh(tableGeo, tableMat);
+    // Table
+    const table = new THREE.Mesh(
+        new THREE.BoxGeometry(12, 0.4, 4),
+        new THREE.MeshStandardMaterial({ color: 0x00f2ff, emissive: 0x001122 })
+    );
     table.position.y = -1.2;
     scene.add(table);
 
-    // 3D Neon Bottle
+    // Bottle
     bottle = new THREE.Group();
-    // Geometry: We shift the cylinder up so its "pivot point" is at the base
     const bodyGeo = new THREE.CylinderGeometry(0.4, 0.5, 2, 32);
     bodyGeo.translate(0, 1, 0); 
-    const body = new THREE.Mesh(bodyGeo, new THREE.MeshPhongMaterial({ color: 0x10b981, emissive: 0x064e3b, shininess: 100 }));
+    bottleMaterial = new THREE.MeshPhongMaterial(gameState.skins[1]);
+    const body = new THREE.Mesh(bodyGeo, bottleMaterial);
     bottle.add(body);
     
     const capGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.4);
     capGeo.translate(0, 2.2, 0);
-    const cap = new THREE.Mesh(capGeo, new THREE.MeshBasicMaterial({ color: 0xff4444 }));
-    bottle.add(cap);
+    bottle.add(new THREE.Mesh(capGeo, new THREE.MeshBasicMaterial({ color: 0xff4444 })));
     
-    bottle.position.y = -1; // Place base on table
+    bottle.position.y = -1;
     scene.add(bottle);
 
-    // Ring
-    const ringGeo = new THREE.TorusGeometry(0.3, 0.06, 16, 100);
-    ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    // Ring & Rope
+    ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.06, 16, 100), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     scene.add(ring);
-
-    // Rope
-    const ropeMat = new THREE.LineBasicMaterial({ color: 0x666666 });
-    const ropeGeo = new THREE.BufferGeometry();
-    rope = new THREE.Line(ropeGeo, ropeMat);
+    rope = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x666666 }));
     scene.add(rope);
 
-    createRain();
     camera.position.set(0, 1, 7);
-}
-
-function createRain() {
-    const geo = new THREE.BufferGeometry();
-    const points = [];
-    for(let i=0; i<1000; i++) {
-        points.push((Math.random()-0.5)*20, Math.random()*10, (Math.random()-0.5)*10);
-    }
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-    rainSystem = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x00f2ff, size: 0.05 }));
-    scene.add(rainSystem);
 }
 
 function updatePhysics() {
     if (gameState.paused) return;
     const dt = Math.min(clock.getDelta(), 0.1);
 
-    // 1. Wind & Weather
+    // Timer Logic
+    gameState.timeLeft -= dt;
+    const timerPerc = (gameState.timeLeft / gameState.maxTime) * 100;
+    document.getElementById('timerBar').style.width = timerPerc + "%";
+    if (gameState.timeLeft <= 0) loseLife("BATTERY DRAINED");
+
+    // Wind
     if (Math.random() > 0.98) gameState.windTarget = (Math.random() - 0.5) * (gameState.level * 0.15);
     gameState.windForce += (gameState.windTarget - gameState.windForce) * 0.05;
-    
-    if (gameState.level >= 5 && Math.random() > 0.998) lightFlash.intensity = 50;
-    lightFlash.intensity *= 0.95;
 
-    // 2. Ring Pendulum Physics
+    // Ring Pendulum
     const targetX = gameState.mousePos.x * 8;
     const targetY = (gameState.mousePos.y * 4) + 2;
-    
     gameState.ringVel.x += (targetX - gameState.ringPos.x) * 0.1 + (gameState.windForce * 0.4);
     gameState.ringVel.y += (targetY - gameState.ringPos.y) * 0.1;
     gameState.ringVel.multiplyScalar(0.9);
     gameState.ringPos.add(gameState.ringVel.clone().multiplyScalar(dt * 10));
     ring.position.copy(gameState.ringPos);
-
-    // 3. Rope Visual
     rope.geometry.setFromPoints([new THREE.Vector3(0, 6, 0), gameState.ringPos]);
 
-    // 4. Bottle Physics
-    // Calculate Cap Position in World Space
-    const capLocalPos = new THREE.Vector3(0, 2.2, 0);
-    const capWorldPos = capLocalPos.applyMatrix4(bottle.matrixWorld);
+    // Hooking
+    const capWorldPos = new THREE.Vector3(0, 2.2, 0).applyMatrix4(bottle.matrixWorld);
     const dist = ring.position.distanceTo(capWorldPos);
-
-    if (dist < 0.5) {
-        if (!gameState.isHooked) {
-            gameState.isHooked = true;
-            // Play sound logic here if desired
-        }
-    }
+    if (dist < 0.5) gameState.isHooked = true;
 
     if (gameState.isHooked) {
-        // Pull bottle toward ring
         const targetAngle = Math.atan2(ring.position.x - bottle.position.x, ring.position.y - bottle.position.y);
         gameState.bottleAngle += (targetAngle - gameState.bottleAngle) * 0.1;
-        
-        // Let go if pulled too far
         if (dist > 1.5) gameState.isHooked = false;
     } else {
-        // Gravity pulls bottle back to flat (-1.57)
-        if (gameState.bottleAngle > -1.57) {
-            gameState.bottleAngle -= 0.03 + (gameState.level * 0.005);
-        }
-        // Friction/Wind sliding
-        gameState.bottleVX += gameState.windForce * 0.01;
-        gameState.bottleX += gameState.bottleVX;
-        gameState.bottleVX *= 0.95;
+        if (gameState.bottleAngle > -1.57) gameState.bottleAngle -= 0.04;
+        gameState.bottleX += gameState.windForce * 0.02;
     }
-
-    // Constraints
-    if (gameState.bottleAngle > 0.1) gameState.bottleAngle = 0.1; // Don't over-rotate forward
-    if (gameState.bottleAngle < -1.57) gameState.bottleAngle = -1.57;
 
     bottle.rotation.z = -gameState.bottleAngle;
     bottle.position.x = gameState.bottleX;
 
-    // Fail Conditions
-    if (Math.abs(gameState.bottleX) > 6) loseLife("BOTTLE SLID OFF");
-    
-    // Win Condition: Upright (Close to 0) and Stable
-    if (gameState.bottleAngle > -0.05 && Math.abs(gameState.windForce) < 0.05 && !gameState.isHooked) {
-        winLevel();
-    }
+    if (Math.abs(gameState.bottleX) > 6) loseLife("FELL OFF TABLE");
+    if (gameState.bottleAngle > -0.05 && !gameState.isHooked) winLevel();
+}
 
-    // Rain Animation
-    const rainArr = rainSystem.geometry.attributes.position.array;
-    for(let i=1; i<rainArr.length; i+=3) {
-        rainArr[i] -= 0.15;
-        rainArr[i-1] += gameState.windForce;
-        if(rainArr[i] < -2) {
-            rainArr[i] = 10;
-            rainArr[i-1] = (Math.random()-0.5)*20;
-        }
+function updateUI() {
+    document.getElementById("score").textContent = gameState.score;
+    document.getElementById("level").textContent = gameState.level;
+    document.getElementById("livesDisplay").textContent = "❤️".repeat(gameState.lives);
+    
+    // Skin Check
+    const skinSet = gameState.level >= 10 ? 10 : (gameState.level >= 5 ? 5 : 1);
+    const skin = gameState.skins[skinSet];
+    document.getElementById("skin-name").textContent = skin.name;
+    if (bottleMaterial) {
+        bottleMaterial.color.setHex(skin.color);
+        bottleMaterial.emissive.setHex(skin.emissive);
     }
-    rainSystem.geometry.attributes.position.needsUpdate = true;
+}
+
+function updateLevelList() {
+    const list = document.getElementById("levelList");
+    list.innerHTML = "";
+    for(let i=1; i<=gameState.level+2; i++) {
+        const li = document.createElement("li");
+        li.className = `level-item ${i === gameState.level ? 'active' : ''}`;
+        li.textContent = `LEVEL ${i} ${i < gameState.level ? '✓' : ''}`;
+        list.appendChild(li);
+    }
 }
 
 function winLevel() {
     gameState.score += 100;
     gameState.level++;
+    gameState.timeLeft = gameState.maxTime;
     resetPosition();
     updateUI();
+    updateLevelList();
 }
 
 function loseLife(reason) {
@@ -183,26 +155,18 @@ function loseLife(reason) {
     updateUI();
     if (gameState.lives <= 0) {
         document.getElementById('deathReason').innerText = reason;
+        document.getElementById('finalScore').innerText = gameState.score;
         document.getElementById('gameOverOverlay').classList.remove('hidden');
         gameState.paused = true;
     } else {
         resetPosition();
+        gameState.timeLeft = gameState.maxTime;
     }
 }
 
 function resetPosition() {
-    gameState.bottleX = 0;
-    gameState.bottleAngle = -1.57;
-    gameState.isHooked = false;
-    gameState.ringPos.set(0, 3, 0);
-    gameState.ringVel.set(0,0,0);
-}
-
-function updateUI() {
-    document.getElementById("score").textContent = gameState.score;
-    document.getElementById("level").textContent = gameState.level;
-    const livesDisplay = document.getElementById("livesDisplay");
-    if (livesDisplay) livesDisplay.textContent = "❤️".repeat(gameState.lives);
+    gameState.bottleX = 0; gameState.bottleAngle = -1.57;
+    gameState.isHooked = false; gameState.ringPos.set(0, 3, 0);
 }
 
 function animate() {
@@ -211,17 +175,14 @@ function animate() {
     renderer.render(scene, camera);
 }
 
+// Controls
 window.addEventListener('mousemove', (e) => {
     gameState.mousePos.x = (e.clientX / window.innerWidth) * 2 - 1;
     gameState.mousePos.y = -(e.clientY / window.innerHeight) * 2 + 1;
 });
 
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
+document.getElementById('pauseBtn').onclick = () => { gameState.paused = true; document.getElementById('pauseOverlay').classList.remove('hidden'); };
+document.getElementById('resumeBtn').onclick = () => { gameState.paused = false; document.getElementById('pauseOverlay').classList.add('hidden'); };
 document.getElementById('restartBtn').onclick = () => location.reload();
 
 init();

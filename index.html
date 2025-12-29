@@ -3,31 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stand By Me 3D</title>
+    <title>Stand By Me 3D - Cyber Edition</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 </head>
 <body>
-    <div id="ui-layer">
+    <div id="ui-container">
+        <div class="header">
+            <h1 class="game-title">STAND BY ME <span id="skin-name">NEON GEN</span></h1>
+            <button id="pauseBtn">PAUSE</button>
+        </div>
+
         <div class="sidebar">
             <div class="stats">
-                <div>LIVES: <span id="livesDisplay">❤️❤️❤️</span></div>
-                <div>SCORE: <span id="score">0</span></div>
-                <div>LEVEL: <span id="level">1</span></div>
+                <div class="stat-item">LIVES: <span id="livesDisplay">❤️❤️❤️</span></div>
+                <div class="stat-item">SCORE: <span id="score">0</span></div>
+                <div class="stat-item">LEVEL: <span id="level">1</span></div>
             </div>
+            
+            <div class="timer-container">
+                <div id="timerBar"></div>
+            </div>
+
+            <h3>LEVELS</h3>
             <ul id="levelList"></ul>
         </div>
-        
+
         <div id="pauseOverlay" class="overlay hidden">
             <h1>PAUSED</h1>
-            <button id="resumeBtn">RESUME</button>
+            <button id="resumeBtn">RESUME GAME</button>
         </div>
 
         <div id="gameOverOverlay" class="overlay hidden">
-            <h1>GAME OVER</h1>
+            <h1>SYSTEM FAILURE</h1>
             <p id="deathReason"></p>
             <p>Final Score: <span id="finalScore">0</span></p>
-            <button id="restartBtn">RESTART</button>
+            <button id="restartBtn">REBOOT</button>
         </div>
     </div>
 

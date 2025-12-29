@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STAND-BY-ME | Neon Night Market</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="night-market-scene">
+    <header class="neon-header">
+        <h1 class="arcade-title">STAND-BY-ME</h1>
+    </header>
+
+    <div class="arcade-cabinet">
+        <div class="main-layout">
+            <div class="canvas-area">
+                <div id="status" class="retro-label">READY PLAYER 1</div>
+                <canvas id="gameCanvas"></canvas>
+
+                <div id="tutorialOverlay" class="overlay arcade-overlay">
+                    <h2 class="neon-green">Stand by Mary（安瑪莉） </h2>
+                    <p>Hook the bottle. Stand it upright.</p>
+                    <button id="startBtn" class="arcade-button">START</button>
+                </div>
+
+                <div id="pauseOverlay" class="overlay arcade-overlay hidden">
+                    <h1 class="neon-yellow">PAUSED</h1>
+                    <button id="resumeBtn" class="arcade-button">RESUME</button>
+                    <button id="resetBtn" class="arcade-button quit">QUIT</button>
+                </div>
+
+                <div id="gameOverOverlay" class="overlay arcade-overlay hidden">
+                    <h2 id="deathReason" class="neon-red">GAME OVER</h2>
+                    <p class="score-display">SCORE: <span id="finalScore">0</span></p>
+                    <button id="restartBtn" class="arcade-button">RETRY</button>
+                </div>
+                
+                <button id="pauseBtn" class="pause-icon">II</button>
+            </div>
+
+            <div class="sidebar arcade-panel">
+                <div class="panel-section">
+                    <div class="sidebar-header">STAGES</div>
+                    <ul id="levelList"></ul>
+                </div>
+                
+                <div class="panel-section">
+                    <div class="sidebar-header">SKINS</div>
+                    <div id="skinObjective" class="objective-item">
+                        <div id="skinStatus">Next: Lv 5 Sapphire</div>
+                    </div>
+                    <div class="skin-preview-grid">
+                        <div class="dot green active"></div>
+                        <div class="dot blue"></div>
+                        <div class="dot red"></div>
+                        <div class="dot black"></div>
+                        <div class="dot purple"></div>
+                    </div>
+                </div>
+                <div id="livesContainer">
+    LIVES: <span id="livesDisplay">❤️❤️❤️</span>
+</div>
+
+                <div class="panel-section stats-area">
+                    <div class="stat-box"><span>SCORE</span><span id="score" class="digital-num">0</span></div>
+                    <div class="stat-box"><span>BEST</span><span id="bestScore" class="digital-num">0</span></div>
+                    <div class="stat-box"><span>LEVEL</span><span id="level" class="digital-num">1</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="booth-counter"></div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

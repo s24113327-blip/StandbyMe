@@ -3,12 +3,11 @@ import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
 let scene, camera, renderer, bottle, ring, rope, lightFlash, bottleMaterial, ropeMaterial, rainSystem;
 let clock = new THREE.Clock();
 
-// FULL GAME STATE RESTORED
 const gameState = {
     level: 1,
     lives: 3,
     score: 0,
-    bottleAngle: 1.57, // Starts flat (90 degrees)
+    bottleAngle: 1.57, // Starts flat (90 deg)
     bottleX: 0,
     bottleVX: 0,
     windForce: 0,
@@ -17,7 +16,7 @@ const gameState = {
     paused: false,
     timeLeft: 20,
     maxTime: 20,
-    ringPos: new THREE.Vector3(0, 3, 2),
+    ringPos: new THREE.Vector3(0, 3, 0),
     ringVel: new THREE.Vector3(0, 0, 0),
     mousePos: new THREE.Vector2(),
     skins: {
@@ -28,13 +27,16 @@ const gameState = {
     }
 };
 
+const TABLE_SURFACE_Y = -1.0; 
+const RING_RADIUS = 0.45;
+
 function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020205);
     scene.fog = new THREE.FogExp2(0x020205, 0.05);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 3.5, 9); // Centered viewpoint
+    camera.position.set(0, 3, 9);
     camera.lookAt(0, 0, 0);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -42,8 +44,8 @@ function init() {
     renderer.setPixelRatio(window.devicePixelRatio);
     document.getElementById('game-container').appendChild(renderer.domElement);
 
-    // Lighting
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    // Lights
+    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambient);
 
     lightFlash = new THREE.PointLight(0xffffff, 0, 150);
@@ -58,7 +60,7 @@ function init() {
 }
 
 function createWorld() {
-    // 1. NEON TABLE
+    // 1. Neon Table
     const tableGeo = new THREE.BoxGeometry(16, 0.6, 6);
     const tableMat = new THREE.MeshStandardMaterial({ 
         color: 0x111111, 
@@ -69,10 +71,10 @@ function createWorld() {
     table.position.y = -1.3;
     scene.add(table);
 
-    // 2. THE BOTTLE (Pivot at bottom)
+    // 2. Bottle (Pivot at Base)
     bottle = new THREE.Group();
     const bodyGeo = new THREE.CylinderGeometry(0.4, 0.5, 2, 32);
-    bodyGeo.translate(0, 1, 0); // Shifts pivot to base
+    bodyGeo.translate(0, 1, 0); 
     bottleMaterial = new THREE.MeshPhongMaterial(gameState.skins[1]);
     const body = new THREE.Mesh(bodyGeo, bottleMaterial);
     bottle.add(body);
@@ -85,14 +87,14 @@ function createWorld() {
     bottle.rotation.z = gameState.bottleAngle;
     scene.add(bottle);
 
-    // 3. THE RING
+    // 3. Ring
     ring = new THREE.Mesh(
-        new THREE.TorusGeometry(0.4, 0.08, 16, 100), 
+        new THREE.TorusGeometry(RING_RADIUS, 0.08, 16, 100), 
         new THREE.MeshBasicMaterial({ color: 0xffffff })
     );
     scene.add(ring);
 
-    // 4. THE ROPE
+    // 4. Rope
     ropeMaterial = new THREE.LineBasicMaterial({ color: 0x00f2ff });
     rope = new THREE.Line(new THREE.BufferGeometry(), ropeMaterial);
     scene.add(rope);
@@ -108,80 +110,84 @@ function createRain() {
     scene.add(rainSystem);
 }
 
-
-
 function updatePhysics() {
     if (gameState.paused) return;
     const dt = Math.min(clock.getDelta(), 0.1);
 
     // Timer Logic
     gameState.timeLeft -= dt;
-    const timerBar = document.getElementById('timerBar');
-    if (timerBar) timerBar.style.width = (gameState.timeLeft / gameState.maxTime * 100) + "%";
+    const tBar = document.getElementById('timerBar');
+    if (tBar) tBar.style.width = (gameState.timeLeft / gameState.maxTime * 100) + "%";
     if (gameState.timeLeft <= 0) loseLife("TIME EXPIRED");
 
-    // Weather: Wind & Lightning
+    // Weather Effects
     if (Math.random() > 0.98) gameState.windTarget = (Math.random() - 0.5) * (gameState.level * 0.15);
     gameState.windForce += (gameState.windTarget - gameState.windForce) * 0.05;
-
     if (gameState.level >= 5 && Math.random() > 0.998) lightFlash.intensity = 150;
-    lightFlash.intensity *= 0.9;
+    lightFlash.intensity *= 0.92;
 
-    // Ring Pendulum (Follows Mouse)
+    // Ring Physics (with Table Collision)
     const tx = gameState.mousePos.x * 12;
     const ty = (gameState.mousePos.y * 6) + 2;
     gameState.ringVel.x += (tx - gameState.ringPos.x) * 0.15 + (gameState.windForce * 0.5);
     gameState.ringVel.y += (ty - gameState.ringPos.y) * 0.15;
     gameState.ringVel.multiplyScalar(0.85);
-    gameState.ringPos.add(gameState.ringVel.clone().multiplyScalar(dt * 10));
-    ring.position.copy(gameState.ringPos);
+    
+    gameState.ringPos.x += gameState.ringVel.x * dt * 10;
+    gameState.ringPos.y += gameState.ringVel.y * dt * 10;
+    gameState.ringPos.z = 0; // Lock Depth
 
-    // Update Rope
+    // Collision with table top
+    if (gameState.ringPos.y - RING_RADIUS < TABLE_SURFACE_Y) {
+        gameState.ringPos.y = TABLE_SURFACE_Y + RING_RADIUS;
+        gameState.ringVel.y *= -0.4; // Bounce
+    }
+    ring.position.copy(gameState.ringPos);
     rope.geometry.setFromPoints([new THREE.Vector3(0, 10, 0), gameState.ringPos]);
 
-    // Hooking Detection
+    // Hooking Mechanics
     const capWorldPos = new THREE.Vector3(0, 2.2, 0).applyMatrix4(bottle.matrixWorld);
     const dist = ring.position.distanceTo(capWorldPos);
 
-    if (dist < 0.7) {
-        ring.material.color.set(0x39ff14); // Proximity feedback
-        if (dist < 0.4) gameState.isHooked = true;
+    if (dist < 0.8) {
+        ring.material.color.set(0x39ff14); 
+        if (dist < 0.5) {
+            gameState.isHooked = true;
+            ring.position.lerp(capWorldPos, 0.3); // Magnetic Snap
+        }
     } else {
         ring.material.color.set(0xffffff);
     }
 
     if (gameState.isHooked) {
         const targetAngle = Math.atan2(ring.position.x - bottle.position.x, ring.position.y - bottle.position.y);
-        gameState.bottleAngle += (targetAngle - gameState.bottleAngle) * 0.15;
-        if (dist > 1.4) gameState.isHooked = false;
+        gameState.bottleAngle += (targetAngle - gameState.bottleAngle) * 0.2;
+        if (dist > 1.5) gameState.isHooked = false;
     } else {
-        if (gameState.bottleAngle < 1.57) gameState.bottleAngle += 0.05; // Fall down
+        if (gameState.bottleAngle < 1.57) gameState.bottleAngle += 0.06;
         gameState.bottleVX += gameState.windForce * 0.02;
         gameState.bottleX += gameState.bottleVX;
         gameState.bottleVX *= 0.95;
     }
 
-    // Constraints & Rotation
-    if (gameState.bottleAngle < -0.1) gameState.bottleAngle = -0.1;
-    if (gameState.bottleAngle > 1.57) gameState.bottleAngle = 1.57;
     bottle.rotation.z = gameState.bottleAngle;
     bottle.position.x = gameState.bottleX;
 
     // Rain Movement
     const rainArr = rainSystem.geometry.attributes.position.array;
     for (let i = 1; i < rainArr.length; i += 3) {
-        rainArr[i] -= 0.2;
-        rainArr[i - 1] += gameState.windForce;
+        rainArr[i] -= 0.25; 
+        rainArr[i-1] += gameState.windForce;
         if (rainArr[i] < -5) {
             rainArr[i] = 15;
-            rainArr[i - 1] = (Math.random() - 0.5) * 30;
+            rainArr[i-1] = (Math.random() - 0.5) * 30;
         }
     }
     rainSystem.geometry.attributes.position.needsUpdate = true;
 
-    // Game Rules
+    // Win/Lose Checks
     if (Math.abs(gameState.bottleX) > 7.5) loseLife("BOTTLE SLID OFF");
-    if (Math.abs(gameState.bottleAngle) < 0.1 && !gameState.isHooked && Math.abs(gameState.windForce) < 0.06) {
+    if (Math.abs(gameState.bottleAngle) < 0.08 && !gameState.isHooked && Math.abs(gameState.windForce) < 0.06) {
         winLevel();
     }
 }
@@ -192,7 +198,6 @@ function updateUI() {
     const lDisplay = document.getElementById("livesDisplay");
     if (lDisplay) lDisplay.textContent = "❤️".repeat(gameState.lives);
     
-    // Skins Restoration
     const skinSet = gameState.level >= 15 ? 15 : (gameState.level >= 10 ? 10 : (gameState.level >= 5 ? 5 : 1));
     const skin = gameState.skins[skinSet];
     const sName = document.getElementById("skin-name");
@@ -242,7 +247,7 @@ function loseLife(reason) {
 function resetPosition() {
     gameState.bottleX = 0; gameState.bottleVX = 0;
     gameState.bottleAngle = 1.57; gameState.isHooked = false;
-    gameState.ringPos.set(0, 3, 2);
+    gameState.ringPos.set(0, 3, 0);
 }
 
 function animate() {

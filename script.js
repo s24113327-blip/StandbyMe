@@ -1,4 +1,6 @@
-let scene, camera, renderer, bottle, ring, rope, lightFlash, bottleMaterial;
+import * as THREE from 'three';
+
+let scene, camera, renderer, bottle, ring, rope, lightFlash, bottleMaterial, ropeMaterial;
 let clock = new THREE.Clock();
 
 const gameState = {
@@ -20,14 +22,17 @@ const gameState = {
 function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020205);
+    
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio); // Sharper graphics
     document.getElementById('game-container').appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambient);
-    lightFlash = new THREE.PointLight(0xffffff, 0, 50);
+
+    lightFlash = new THREE.PointLight(0xffffff, 0, 100);
     lightFlash.position.set(0, 5, 2);
     scene.add(lightFlash);
 
@@ -38,15 +43,15 @@ function init() {
 }
 
 function createWorld() {
-    // Table
+    // 3D Table with reflective properties
     const table = new THREE.Mesh(
         new THREE.BoxGeometry(12, 0.4, 4),
-        new THREE.MeshStandardMaterial({ color: 0x00f2ff, emissive: 0x001122 })
+        new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0x002233, metalness: 0.8, roughness: 0.2 })
     );
     table.position.y = -1.2;
     scene.add(table);
 
-    // Bottle
+    // Bottle Setup
     bottle = new THREE.Group();
     const bodyGeo = new THREE.CylinderGeometry(0.4, 0.5, 2, 32);
     bodyGeo.translate(0, 1, 0); 
@@ -61,58 +66,70 @@ function createWorld() {
     bottle.position.y = -1;
     scene.add(bottle);
 
-    // Ring & Rope
-    ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.06, 16, 100), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    // Ring
+    ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.3, 0.06, 16, 100), 
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
     scene.add(ring);
-    rope = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x666666 }));
+
+    // Glowing Rope
+    ropeMaterial = new THREE.LineBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 });
+    rope = new THREE.Line(new THREE.BufferGeometry(), ropeMaterial);
     scene.add(rope);
 
     camera.position.set(0, 1, 7);
 }
 
+
+
 function updatePhysics() {
     if (gameState.paused) return;
     const dt = Math.min(clock.getDelta(), 0.1);
 
-    // Timer Logic
+    // Timer
     gameState.timeLeft -= dt;
-    const timerPerc = (gameState.timeLeft / gameState.maxTime) * 100;
-    document.getElementById('timerBar').style.width = timerPerc + "%";
-    if (gameState.timeLeft <= 0) loseLife("BATTERY DRAINED");
+    document.getElementById('timerBar').style.width = (gameState.timeLeft / gameState.maxTime * 100) + "%";
+    if (gameState.timeLeft <= 0) loseLife("TIME EXPIRED");
 
-    // Wind
+    // Wind Logic
     if (Math.random() > 0.98) gameState.windTarget = (Math.random() - 0.5) * (gameState.level * 0.15);
     gameState.windForce += (gameState.windTarget - gameState.windForce) * 0.05;
 
-    // Ring Pendulum
+    // Ring Physics
     const targetX = gameState.mousePos.x * 8;
     const targetY = (gameState.mousePos.y * 4) + 2;
-    gameState.ringVel.x += (targetX - gameState.ringPos.x) * 0.1 + (gameState.windForce * 0.4);
-    gameState.ringVel.y += (targetY - gameState.ringPos.y) * 0.1;
-    gameState.ringVel.multiplyScalar(0.9);
+    gameState.ringVel.x += (targetX - gameState.ringPos.x) * 0.12 + (gameState.windForce * 0.4);
+    gameState.ringVel.y += (targetY - gameState.ringPos.y) * 0.12;
+    gameState.ringVel.multiplyScalar(0.88);
     gameState.ringPos.add(gameState.ringVel.clone().multiplyScalar(dt * 10));
     ring.position.copy(gameState.ringPos);
-    rope.geometry.setFromPoints([new THREE.Vector3(0, 6, 0), gameState.ringPos]);
 
-    // Hooking
+    // Update Rope Geometry
+    const points = [new THREE.Vector3(0, 7, 0), gameState.ringPos];
+    rope.geometry.setFromPoints(points);
+
+    // Hooking Mechanics
     const capWorldPos = new THREE.Vector3(0, 2.2, 0).applyMatrix4(bottle.matrixWorld);
     const dist = ring.position.distanceTo(capWorldPos);
+    
     if (dist < 0.5) gameState.isHooked = true;
 
     if (gameState.isHooked) {
         const targetAngle = Math.atan2(ring.position.x - bottle.position.x, ring.position.y - bottle.position.y);
-        gameState.bottleAngle += (targetAngle - gameState.bottleAngle) * 0.1;
-        if (dist > 1.5) gameState.isHooked = false;
+        gameState.bottleAngle += (targetAngle - gameState.bottleAngle) * 0.15;
+        if (dist > 1.6) gameState.isHooked = false;
     } else {
-        if (gameState.bottleAngle > -1.57) gameState.bottleAngle -= 0.04;
-        gameState.bottleX += gameState.windForce * 0.02;
+        if (gameState.bottleAngle > -1.57) gameState.bottleAngle -= 0.05;
+        gameState.bottleX += gameState.windForce * 0.03;
     }
 
     bottle.rotation.z = -gameState.bottleAngle;
     bottle.position.x = gameState.bottleX;
 
-    if (Math.abs(gameState.bottleX) > 6) loseLife("FELL OFF TABLE");
-    if (gameState.bottleAngle > -0.05 && !gameState.isHooked) winLevel();
+    // Game Rules
+    if (Math.abs(gameState.bottleX) > 6.5) loseLife("FELL OFF PLATFORM");
+    if (gameState.bottleAngle > -0.05 && !gameState.isHooked && Math.abs(gameState.windForce) < 0.08) winLevel();
 }
 
 function updateUI() {
@@ -120,13 +137,16 @@ function updateUI() {
     document.getElementById("level").textContent = gameState.level;
     document.getElementById("livesDisplay").textContent = "❤️".repeat(gameState.lives);
     
-    // Skin Check
     const skinSet = gameState.level >= 10 ? 10 : (gameState.level >= 5 ? 5 : 1);
     const skin = gameState.skins[skinSet];
     document.getElementById("skin-name").textContent = skin.name;
+    
     if (bottleMaterial) {
         bottleMaterial.color.setHex(skin.color);
         bottleMaterial.emissive.setHex(skin.emissive);
+    }
+    if (ropeMaterial) {
+        ropeMaterial.color.setHex(skin.color);
     }
 }
 
@@ -136,7 +156,7 @@ function updateLevelList() {
     for(let i=1; i<=gameState.level+2; i++) {
         const li = document.createElement("li");
         li.className = `level-item ${i === gameState.level ? 'active' : ''}`;
-        li.textContent = `LEVEL ${i} ${i < gameState.level ? '✓' : ''}`;
+        li.textContent = `LV ${i} ${i < gameState.level ? '✓' : ''}`;
         list.appendChild(li);
     }
 }
@@ -155,7 +175,6 @@ function loseLife(reason) {
     updateUI();
     if (gameState.lives <= 0) {
         document.getElementById('deathReason').innerText = reason;
-        document.getElementById('finalScore').innerText = gameState.score;
         document.getElementById('gameOverOverlay').classList.remove('hidden');
         gameState.paused = true;
     } else {
@@ -167,6 +186,7 @@ function loseLife(reason) {
 function resetPosition() {
     gameState.bottleX = 0; gameState.bottleAngle = -1.57;
     gameState.isHooked = false; gameState.ringPos.set(0, 3, 0);
+    gameState.ringVel.set(0,0,0);
 }
 
 function animate() {
@@ -175,10 +195,16 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Controls
+// Mouse and UI Events
 window.addEventListener('mousemove', (e) => {
     gameState.mousePos.x = (e.clientX / window.innerWidth) * 2 - 1;
     gameState.mousePos.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 document.getElementById('pauseBtn').onclick = () => { gameState.paused = true; document.getElementById('pauseOverlay').classList.remove('hidden'); };

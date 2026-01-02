@@ -3,38 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STAND-BY-ME 3D | Vibrant Night Market</title>
+    <title>STAND-BY-ME 3D | Immersive Night Market</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root { 
             --neon-pink: #ff00ff; --neon-blue: #00ffff; --neon-yellow: #ffff00; --neon-green: #39ff14; 
+            --dark-purple: #110011; --dark-blue: #000022;
         }
-        body { background: #110011; color: white; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        body { 
+            background: linear-gradient(180deg, var(--dark-purple) 0%, var(--dark-blue) 100%); 
+            color: white; margin: 0; display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; font-family: 'Segoe UI', sans-serif; overflow: hidden; 
+        }
         
-        /* Arcade Frame */
+        /* Arcade Cabinet Design */
         .arcade-cabinet { 
-            background: #2a2a2a; padding: 12px; border: 6px solid #444; border-radius: 20px; 
-            box-shadow: 0 0 40px rgba(255, 0, 255, 0.2), inset 0 0 20px #000;
+            background: #1c1c2e; padding: 15px; border: 8px solid #333; border-radius: 25px; 
+            box-shadow: 
+                0 0 50px rgba(0,255,255,0.3), /* Blue outer glow */
+                inset 0 0 30px rgba(255,0,255,0.2); /* Pink inner glow */
+            border-image: linear-gradient(45deg, var(--neon-blue), var(--neon-pink)) 1; /* Gradient border */
         }
         
-        .main-layout { display: flex; gap: 10px; background: #000; padding: 5px; border-radius: 10px; }
+        .main-layout { display: flex; gap: 15px; background: #08081a; padding: 10px; border-radius: 15px; }
         
-        .canvas-area { position: relative; width: 800px; height: 500px; border: 2px solid #333; overflow: hidden; }
+        .canvas-area { position: relative; width: 900px; height: 500px; border: 3px solid #555; overflow: hidden; }
         
         /* Sidebar Styling */
-        .sidebar { width: 180px; padding: 15px; display: flex; flex-direction: column; justify-content: space-between; background: linear-gradient(180deg, #1a1a1a 0%, #000 100%); }
-        .label { font-size: 0.65rem; color: var(--neon-blue); text-transform: uppercase; letter-spacing: 2px; font-weight: bold; }
-        .digital { font-family: 'Courier New', monospace; font-size: 1.5rem; color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green); margin-bottom: 15px; }
+        .sidebar { 
+            width: 220px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; 
+            background: #0d0d1e; border-left: 2px solid #333;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+        }
+        .label { font-size: 0.75rem; color: var(--neon-yellow); text-transform: uppercase; letter-spacing: 2px; font-weight: bold; margin-bottom: 5px; }
+        .digital { 
+            font-family: 'Share Tech Mono', monospace; font-size: 1.8rem; color: var(--neon-green); 
+            text-shadow: 0 0 15px var(--neon-green), 0 0 25px rgba(57,255,20,0.5); margin-bottom: 20px; 
+        }
         
-        /* Progress Bar */
-        .timer-wrap { width: 100%; height: 12px; background: #222; border: 1px solid #444; margin: 5px 0 20px 0; border-radius: 6px; overflow: hidden; }
-        #timerFill { width: 100%; height: 100%; background: linear-gradient(90deg, var(--neon-pink), var(--neon-yellow)); box-shadow: 0 0 10px var(--neon-pink); }
+        /* Timer Bar */
+        .timer-wrap { width: 100%; height: 15px; background: #222; border: 1px solid #444; margin: 10px 0 25px 0; border-radius: 8px; overflow: hidden; }
+        #timerFill { 
+            width: 100%; height: 100%; 
+            background: linear-gradient(90deg, var(--neon-pink), var(--neon-yellow)); 
+            box-shadow: 0 0 15px var(--neon-pink); 
+            transition: width 0.1s linear;
+        }
         
-        /* Overlays */
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center; }
+        /* Overlays (Start, Game Over, Win) */
+        .overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; 
+            align-items: center; z-index: 100; text-align: center;
+        }
         .hidden { display: none !important; }
-        .btn { background: var(--neon-pink); color: white; border: none; padding: 15px 40px; font-weight: 900; cursor: pointer; clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%); transition: 0.2s; }
-        .btn:hover { background: var(--neon-blue); transform: scale(1.1); }
+        .btn { 
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink)); 
+            color: white; border: none; padding: 18px 45px; font-weight: 900; cursor: pointer; 
+            text-transform: uppercase; letter-spacing: 3px; border-radius: 8px;
+            box-shadow: 0 0 25px rgba(0,255,255,0.6); transition: all 0.3s ease; 
+        }
+        .btn:hover { 
+            transform: scale(1.05); 
+            box-shadow: 0 0 35px rgba(255,0,255,0.8), 0 0 15px rgba(0,255,255,0.8); 
+        }
+        
+        /* Fireworks/Confetti for Win Screen */
+        .firework {
+            position: absolute; width: 8px; height: 8px; background-color: var(--neon-yellow);
+            border-radius: 50%; animation: explode 1s forwards; opacity: 0;
+        }
+        @keyframes explode {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--x), var(--y)) scale(0); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -45,21 +87,37 @@
             <canvas id="gameCanvas"></canvas>
             
             <div id="ui-start" class="overlay">
-                <h1 style="font-size: 3rem; margin:0; text-shadow: 0 0 20px var(--neon-pink);">STAND-BY-ME</h1>
-                <p style="color: var(--neon-blue);">STALL #07 - BEVERAGE CHALLENGE</p>
-                <button class="btn" onclick="startGame()">START SESSION</button>
+                <h1 style="font-size: 3.5rem; margin-bottom: 10px; text-shadow: 0 0 30px var(--neon-pink), 0 0 15px var(--neon-blue);">
+                    STAND-BY-ME 3D
+                </h1>
+                <p style="color: var(--neon-yellow); font-size: 1.2rem; letter-spacing: 1px;">
+                    NIGHT MARKET CHALLENGE
+                </p>
+                <button class="btn" onclick="startGame()">START JOURNEY</button>
             </div>
 
             <div id="ui-over" class="overlay hidden">
-                <h1 style="color: var(--neon-pink);">SESSION ENDED</h1>
-                <p id="death-msg"></p>
-                <button class="btn" onclick="location.reload()">RETRY</button>
+                <h1 style="color: var(--neon-pink); font-size: 3rem; text-shadow: 0 0 20px var(--neon-pink);">
+                    SESSION ENDED
+                </h1>
+                <p id="death-msg" style="color: #ccc; font-size: 1.1rem; margin-bottom: 20px;"></p>
+                <button class="btn" onclick="location.reload()">RETRY STALL</button>
+            </div>
+
+            <div id="ui-win" class="overlay hidden">
+                <h1 style="color: var(--neon-green); font-size: 3rem; text-shadow: 0 0 20px var(--neon-green);">
+                    STALL CLEARED!
+                </h1>
+                <p style="color: var(--neon-blue); font-size: 1.2rem; margin-bottom: 20px;">
+                    BONUS +100
+                </p>
+                <button class="btn" onclick="nextLevel()">CONTINUE MARKET</button>
             </div>
         </div>
 
         <div class="sidebar">
             <div>
-                <div class="label">Time Limit</div>
+                <div class="label">Time Remaining</div>
                 <div class="timer-wrap"><div id="timerFill"></div></div>
                 
                 <div class="label">Total Score</div>
@@ -70,7 +128,7 @@
             </div>
             <div>
                 <div class="label">Stamina</div>
-                <div id="lives" style="font-size: 1.2rem; margin-top: 5px;">❤️❤️❤️</div>
+                <div id="lives" style="font-size: 1.6rem; margin-top: 5px; letter-spacing: 2px;">❤️❤️❤️</div>
             </div>
         </div>
     </div>
@@ -79,99 +137,166 @@
 <script>
 // --- THREE.JS SCENE SETUP ---
 const canvas = document.getElementById("gameCanvas");
-let scene, camera, renderer, bottle, ring, rope, ground;
-let lanterns = [];
+let scene, camera, renderer, bottleGroup, ringMesh, ropeLine, tableMesh, groundMesh;
+let stallLights = [], distantSigns = [], rainParticles, winFireworks = [];
 
 const state = {
     active: false, over: false, win: false,
     level: 1, score: 0, lives: 3,
-    bX: 400, bAngle: 0, bVel: 0,
-    rX: 400, rY: 150, rVX: 0, rVY: 0,
-    mX: 400, mY: 50,
+    bottleAngle: 0, bottleBaseX: 450, bottleVelocity: 0, // Adjusted starting X
+    ringX: 450, ringY: 180, ringVX: 0, ringVY: 0, // Adjusted starting Y
+    mouseX: 450, mouseY: 80,
     hooked: false, dragging: false,
     time: 20, maxTime: 20,
-    palette: ["#ff00ff", "#39ff14", "#00ffff"] // Pink, Green, Blue
+    windForce: 0, windTarget: 0,
+    
+    // Bottle Skins (Level-based colors)
+    skins: {
+        1: new THREE.Color(0x00ff88),  // Emerald Green
+        3: new THREE.Color(0x00aaff),  // Sky Blue
+        5: new THREE.Color(0xff00aa),  // Hot Pink
+        7: new THREE.Color(0xffff00)   // Neon Yellow
+    }
 };
 
-function init() {
+function init3D() {
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x110011);
-    scene.fog = new THREE.Fog(0x110011, 200, 1000);
+    scene.background = new THREE.Color(0x08081a); // Darker blue background
+    scene.fog = new THREE.Fog(0x08081a, 150, 900);
 
-    camera = new THREE.PerspectiveCamera(45, 800 / 500, 1, 2000);
-    camera.position.set(0, 80, 500);
+    camera = new THREE.PerspectiveCamera(50, 900 / 500, 1, 2000);
+    camera.position.set(0, 100, 550); // Slightly higher for more depth
+    camera.lookAt(0, 0, 0);
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    renderer.setSize(800, 500);
+    renderer.setSize(900, 500);
 
-    // 1. VIBRANT LIGHTING
-    const pinkLight = new THREE.PointLight(0xff00ff, 2, 600);
-    pinkLight.position.set(-200, 200, 100);
-    scene.add(pinkLight);
+    // Main Lighting
+    const ambient = new THREE.AmbientLight(0x404040, 0.4);
+    scene.add(ambient);
 
-    const blueLight = new THREE.PointLight(0x00ffff, 2, 600);
-    blueLight.position.set(200, 200, 100);
-    scene.add(blueLight);
+    // 1. REFLECTIVE WET GROUND (Puddles)
+    const groundGeo = new THREE.PlaneGeometry(3000, 3000);
+    const groundMat = new THREE.MeshStandardMaterial({ 
+        color: 0x050515, roughness: 0.05, metalness: 0.7 
+    });
+    groundMesh = new THREE.Mesh(groundGeo, groundMat);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.position.y = -150;
+    scene.add(groundMesh);
 
-    // 2. REFLECTIVE MARKET FLOOR
-    const floorGeo = new THREE.PlaneGeometry(2000, 2000);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1, metalness: 0.5 });
-    ground = new THREE.Mesh(floorGeo, floorMat);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -150;
-    scene.add(ground);
+    // 2. BACKDROP: DISTANT BUILDINGS & NEON SIGNS
+    const wallGeo = new THREE.BoxGeometry(2000, 500, 20);
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x050510, roughness: 0.8 });
+    const backWall = new THREE.Mesh(wallGeo, wallMat);
+    backWall.position.set(0, 100, -300);
+    scene.add(backWall);
 
-    // 3. STALL DECORATIONS (Canopy & Signs)
-    const canopyGeo = new THREE.BoxGeometry(700, 10, 300);
-    const canopyMat = new THREE.MeshStandardMaterial({ color: 0xff0055 });
+    const signColors = [0xff00ff, 0x00ffff, 0xffff00, 0x39ff14];
+    for (let i = 0; i < 10; i++) {
+        const signColor = signColors[Math.floor(Math.random() * signColors.length)];
+        const signGeo = new THREE.PlaneGeometry(50 + Math.random() * 100, 30 + Math.random() * 60);
+        const signMat = new THREE.MeshBasicMaterial({ color: signColor, transparent: true, opacity: 0.8 });
+        const sign = new THREE.Mesh(signGeo, signMat);
+        sign.position.set(-800 + i * 180, 150 + Math.random() * 150, -290);
+        scene.add(sign);
+        distantSigns.push({ mesh: sign, color: signColor }); // Store for animation
+    }
+
+    // 3. STALL STRUCTURE AROUND THE GAME
+    const stallMaterial = new THREE.MeshStandardMaterial({ color: 0x100515, roughness: 0.7 });
+
+    // Left Stall Wall
+    const leftStall = new THREE.Mesh(new THREE.BoxGeometry(400, 300, 20), stallMaterial);
+    leftStall.position.set(-450, 0, -150);
+    scene.add(leftStall);
+    // Left Stall Neon Trim
+    const leftTrim = new THREE.Mesh(new THREE.BoxGeometry(405, 10, 25), new THREE.MeshBasicMaterial({ color: 0xff00ff }));
+    leftTrim.position.set(-450, 150, -150);
+    scene.add(leftTrim);
+    
+    // Right Stall Wall
+    const rightStall = new THREE.Mesh(new THREE.BoxGeometry(400, 300, 20), stallMaterial);
+    rightStall.position.set(450, 0, -150);
+    scene.add(rightStall);
+    // Right Stall Neon Trim
+    const rightTrim = new THREE.Mesh(new THREE.BoxGeometry(405, 10, 25), new THREE.MeshBasicMaterial({ color: 0x00ffff }));
+    rightTrim.position.set(450, 150, -150);
+    scene.add(rightTrim);
+
+
+    // Stall Canopy above game
+    const canopyGeo = new THREE.BoxGeometry(800, 50, 400);
+    const canopyMat = new THREE.MeshStandardMaterial({ color: 0x150015, roughness: 0.6 });
     const canopy = new THREE.Mesh(canopyGeo, canopyMat);
-    canopy.position.set(0, 300, -100);
+    canopy.position.set(0, 200, -50);
     scene.add(canopy);
+    // Canopy Neon Trim
+    const canopyTrim = new THREE.Mesh(new THREE.BoxGeometry(805, 5, 405), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+    canopyTrim.position.set(0, 225, -50);
+    scene.add(canopyTrim);
 
-    // 4. THE TABLE
+    // 4. THE GAME TABLE
     const tableGeo = new THREE.BoxGeometry(600, 20, 250);
-    const tableMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const table = new THREE.Mesh(tableGeo, tableMat);
-    table.position.y = -90;
-    scene.add(table);
+    const tableMat = new THREE.MeshStandardMaterial({ color: 0x221122, roughness: 0.1 });
+    tableMesh = new THREE.Mesh(tableGeo, tableMat);
+    tableMesh.position.y = -90; // Top of table at Y = -80
+    scene.add(tableMesh);
 
     // 5. THE BOTTLE
-    bottle = new THREE.Group();
-    const body = new THREE.Mesh(
+    bottleGroup = new THREE.Group();
+    const bottleBody = new THREE.Mesh(
         new THREE.CylinderGeometry(20, 24, 130, 32),
-        new THREE.MeshPhysicalMaterial({ color: 0x00ff88, transmission: 0.4, transparent: true, thickness: 2 })
+        new THREE.MeshPhysicalMaterial({ color: state.skins[1], transmission: 0.4, transparent: true, thickness: 2, roughness: 0.1 })
     );
-    body.rotation.z = Math.PI / 2;
-    body.position.x = 65; // Pivot logic
-    bottle.add(body);
+    bottleBody.rotation.z = Math.PI / 2;
+    bottleBody.position.x = 65; // Pivot offset
+    bottleGroup.add(bottleBody);
     
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 20), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-    cap.rotation.z = Math.PI / 2; cap.position.x = 145;
-    bottle.add(cap);
-    scene.add(bottle);
+    const bottleCap = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 20), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    bottleCap.rotation.z = Math.PI / 2; bottleCap.position.x = 145;
+    bottleGroup.add(bottleCap);
+    scene.add(bottleGroup);
 
     // 6. THE RING & ROPE
-    ring = new THREE.Mesh(new THREE.TorusGeometry(22, 3, 16, 50), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff }));
-    scene.add(ring);
-    rope = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff }));
-    scene.add(rope);
+    ringMesh = new THREE.Mesh(new THREE.TorusGeometry(22, 3, 16, 50), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff }));
+    scene.add(ringMesh);
+    ropeLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff }));
+    scene.add(ropeLine);
 
-    // 7. LANTERNS (Vibrant Orbs)
-    for(let i=0; i<6; i++) {
-        const color = i % 2 === 0 ? 0xff00ff : 0xffff00;
-        const lan = new THREE.Mesh(new THREE.SphereGeometry(12, 16, 16), new THREE.MeshBasicMaterial({ color }));
-        lan.position.set(-400 + (i*160), 250, -150);
+    // 7. HANGING MARKET LANTERNS
+    const lanternColors = [0xff6600, 0xcc00ff, 0x00ffcc]; // Orange, Purple, Teal
+    for(let i=0; i<8; i++) {
+        const color = lanternColors[i % lanternColors.length];
+        const lanternGeo = new THREE.SphereGeometry(15, 16, 16);
+        const lanternMat = new THREE.MeshBasicMaterial({ color: color });
+        const lan = new THREE.Mesh(lanternGeo, lanternMat);
+        lan.position.set(-300 + (i*90), 180 + Math.random()*20, -100 + Math.random()*50);
         scene.add(lan);
-        lanterns.push(lan);
-        const l = new THREE.PointLight(color, 1, 200);
-        l.position.copy(lan.position);
-        scene.add(l);
+        stallLights.push(lan); // Store for animation
+        const pLight = new THREE.PointLight(color, 1.5, 250);
+        pLight.position.copy(lan.position);
+        scene.add(pLight);
     }
+
+    // 8. RAIN PARTICLES
+    const rainGeo = new THREE.BufferGeometry();
+    const rainCount = 1000;
+    const positions = new Float32Array(rainCount * 3);
+    for (let i = 0; i < rainCount; i++) {
+        positions[i * 3] = Math.random() * 2000 - 1000;
+        positions[i * 3 + 1] = Math.random() * 1000;
+        positions[i * 3 + 2] = Math.random() * 1000 - 500;
+    }
+    rainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const rainMat = new THREE.PointsMaterial({ color: 0xaaaaaa, size: 3, transparent: true, opacity: 0.6 });
+    rainParticles = new THREE.Points(rainGeo, rainMat);
+    scene.add(rainParticles);
 }
 
 // --- GAME LOGIC ---
-function update() {
-    if (!state.active || state.over) return;
+function updateGameLogic() {
+    if (!state.active || state.over || state.win) return;
 
     // Timer
     state.time -= 0.016;
@@ -179,64 +304,89 @@ function update() {
     if (state.time <= 0) die("TIME EXPIRED");
 
     // Ring Physics
-    state.rVX += (state.mX - state.rX) * 0.05;
-    state.rVY += (state.mY - state.rY) * 0.05 + 0.8;
-    state.rX += state.rVX; state.rY += state.rVY;
-    state.rVX *= 0.92; state.rVY *= 0.92;
+    state.ringVX += (state.mouseX - state.ringX) * 0.05 + (state.windForce * 20);
+    state.ringVY += (state.mY - state.ringY) * 0.05 + 0.8; // Gravity
+    state.ringX += state.ringVX; state.ringY += state.ringVY;
+    state.ringVX *= 0.92; state.ringVY *= 0.92;
 
-    const cX = state.bX + Math.cos(state.bAngle) * 170;
-    const cY = 350 + Math.sin(state.bAngle) * 170;
+    // Bottle Hooking & Movement
+    const capX = state.bottleBaseX + Math.cos(state.bottleAngle) * 170;
+    const capY = 350 + Math.sin(state.bottleAngle) * 170;
 
     if (state.hooked) {
-        if (Math.hypot(state.rX - cX, state.rY - cY) > 95) {
+        if (Math.hypot(state.ringX - capX, state.ringY - capY) > 95) {
             state.hooked = false;
         } else {
-            // FIXED ROTATION (Tilts towards cursor)
-            const target = Math.atan2(state.rY - 350, state.rX - state.bX);
-            state.bAngle += (target - state.bAngle) * 0.15;
-            state.bVel += (state.rX - cX) * 0.05;
+            const targetAngle = Math.atan2(state.ringY - 350, state.ringX - state.bottleBaseX);
+            state.bottleAngle += (targetAngle - state.bottleAngle) * 0.15;
+            state.bottleVelocity += (state.ringX - capX) * 0.05;
         }
     } else {
-        if (state.bAngle < 0) state.bAngle += (0.06 + state.level * 0.005);
-        if (state.bAngle < -0.8) die("BOTTLE TOPPLED");
-        if (state.bAngle > 0) state.bAngle = 0;
-        state.bVel += (400 - state.bX) * 0.04;
+        if (state.bottleAngle < 0) state.bottleAngle += (0.06 + state.level * 0.005);
+        if (state.bottleAngle < -0.8) die("BOTTLE TOPPLED");
+        if (state.bottleAngle > 0) state.bottleAngle = 0;
+        state.bottleVelocity += (450 - state.bottleBaseX) * 0.04; // Pull to center
     }
 
-    state.bX += state.bVel;
-    state.bVel *= 0.95;
+    state.bottleBaseX += state.bottleVelocity;
+    state.bottleVelocity *= 0.95;
 
-    if (state.bX < 110 || state.bX > 690) die("OFF THE TABLE");
+    if (state.bottleBaseX < 150 || state.bottleBaseX > 750) die("OFF THE TABLE");
+
+    // Level-based Wind
+    if (state.level >= 2) {
+        if (Math.random() > 0.98) state.windTarget = (Math.random() - 0.5) * (0.1 + state.level * 0.02);
+        state.windForce += (state.windTarget - state.windForce) * 0.05;
+    }
 
     // Win Check
-    if (state.bAngle <= -1.48 && Math.abs(state.bVel) < 0.2) {
-        state.score += 100;
-        state.level++;
-        document.getElementById("score").innerText = state.score.toString().padStart(4, '0');
-        document.getElementById("level").innerText = state.level.toString().padStart(2, '0');
-        reset();
+    if (state.bottleAngle <= -1.48 && Math.abs(state.bottleVelocity) < 0.2) {
+        state.win = true;
+        document.getElementById("ui-win").classList.remove("hidden");
+        // Trigger fireworks
+        for(let i=0; i<30; i++) createFirework(Math.random() * 800 - 400, Math.random() * 200 + 100);
     }
 }
 
-function render() {
-    bottle.position.set(state.bX - 400, -80, 0);
-    bottle.rotation.z = state.bAngle; // Corrected mapping
-    
-    ring.position.set(state.rX - 400, -(state.rY - 250), 0);
-    ring.material.emissiveIntensity = state.hooked ? 5 : 0.5;
+// --- VISUAL RENDERING ---
+function renderScene() {
+    // Bottle position & rotation (aligned with table)
+    bottleGroup.position.set(state.bottleBaseX - 450, -80, 0); // X-offset for 900px canvas, Y-offset for table
+    bottleGroup.rotation.z = state.bottleAngle;
+    bottleGroup.children[0].material.color.copy(state.skins[state.level] || state.skins[1]); // Apply skin
 
-    const curve = new THREE.QuadraticBezierCurve3(
-        new THREE.Vector3(0, 250, 0),
-        new THREE.Vector3(0, 150, 0),
-        ring.position.clone()
+    // Ring & Rope
+    ringMesh.position.set(state.ringX - 450, -(state.ringY - 250), 0); // X-offset for 900px canvas, Y-offset for ceiling
+    ringMesh.material.emissiveIntensity = state.hooked ? 5 : 0.5;
+
+    const ropeCurve = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(0, 250, 0), // Rope anchor point (top center)
+        new THREE.Vector3(state.windForce * 500, 150, 0), // Mid-point influenced by wind
+        ringMesh.position.clone()
     );
-    rope.geometry.setFromPoints(curve.getPoints(20));
+    ropeLine.geometry.setFromPoints(ropeCurve.getPoints(20));
 
-    lanterns.forEach((l, i) => l.position.y = 250 + Math.sin(Date.now()*0.002 + i)*10);
-    
+    // Animate Rain
+    rainParticles.position.y -= 3;
+    if (rainParticles.position.y < -300) rainParticles.position.y = 700;
+
+    // Animate Hanging Lights
+    const time = Date.now() * 0.002;
+    stallLights.forEach((light, i) => {
+        light.position.y = 180 + Math.sin(time + i) * 10;
+    });
+
+    // Animate Distant Signs (flicker)
+    distantSigns.forEach(sign => {
+        if (Math.random() > 0.95) sign.mesh.material.opacity = 0.5 + Math.random() * 0.5;
+        else if (Math.random() > 0.99) sign.mesh.material.color.set(sign.color.clone().multiplyScalar(0.5));
+        else sign.mesh.material.color.copy(sign.color);
+    });
+
     renderer.render(scene, camera);
 }
 
+// --- UI AND GAME STATE MANAGEMENT ---
 function die(msg) {
     state.lives--;
     document.getElementById("lives").innerText = "❤️".repeat(state.lives);
@@ -245,44 +395,81 @@ function die(msg) {
         document.getElementById("ui-over").classList.remove("hidden");
         document.getElementById("death-msg").innerText = msg;
     } else {
-        reset();
+        resetGamePosition();
     }
 }
 
-function reset() {
-    state.bX = 400; state.bAngle = 0; state.bVel = 0;
-    state.rX = 400; state.rY = 150; state.hooked = false;
+function resetGamePosition() {
+    state.bottleBaseX = 450; state.bottleAngle = 0; state.bottleVelocity = 0;
+    state.ringX = 450; state.ringY = 180; state.hooked = false;
     state.time = state.maxTime;
+    state.ringVX = 0; state.ringVY = 0;
 }
 
 function startGame() {
     state.active = true;
     document.getElementById("ui-start").classList.add("hidden");
+    updateUI();
 }
 
-// Input Handlers
+function nextLevel() {
+    state.score += 100;
+    state.level++;
+    state.win = false;
+    document.getElementById("ui-win").classList.add("hidden");
+    resetGamePosition();
+    updateUI();
+}
+
+function updateUI() {
+    document.getElementById("score").innerText = state.score.toString().padStart(4, '0');
+    document.getElementById("level").innerText = state.level.toString().padStart(2, '0');
+    // Update best score logic
+    // ...
+}
+
+function createFirework(x, y) {
+    const firework = document.createElement('div');
+    firework.className = 'firework';
+    firework.style.setProperty('--x', `${(Math.random() - 0.5) * 400}px`);
+    firework.style.setProperty('--y', `${(Math.random() - 0.5) * 400}px`);
+    firework.style.left = `${x}px`;
+    firework.style.top = `${y}px`;
+    firework.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+    document.getElementById("ui-win").appendChild(firework);
+    firework.addEventListener('animationend', () => firework.remove());
+}
+
+
+// --- INPUT HANDLERS ---
 canvas.addEventListener('mousedown', e => {
-    const r = canvas.getBoundingClientRect();
-    const x = (e.clientX - r.left) * (800 / r.width);
-    const y = (e.clientY - r.top) * (500 / r.height);
-    if (Math.hypot(x - state.rX, y - state.rY) < 60) state.dragging = true;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (900 / rect.width);
+    const y = (e.clientY - rect.top) * (500 / rect.height);
+    if (Math.hypot(x - state.ringX, y - state.ringY) < 60) state.dragging = true;
 });
+
 window.addEventListener('mousemove', e => {
-    const r = canvas.getBoundingClientRect();
-    state.mX = (e.clientX - r.left) * (800 / r.width);
-    state.mY = (e.clientY - r.top) * (500 / r.height);
-    if (state.dragging && !state.hooked) {
-        const cX = state.bX + Math.cos(state.bAngle) * 170;
-        const cY = 350 + Math.sin(state.bAngle) * 170;
-        if (Math.hypot(state.rX - cX, state.rY - cY) < 30) state.hooked = true;
+    const rect = canvas.getBoundingClientRect();
+    state.mouseX = (e.clientX - rect.left) * (900 / rect.width);
+    state.mouseY = (e.clientY - rect.top) * (500 / rect.height);
+    if (state.dragging && !state.hooked && state.active && !state.over && !state.win) {
+        const capX = state.bottleBaseX + Math.cos(state.bottleAngle) * 170;
+        const capY = 350 + Math.sin(state.bottleAngle) * 170;
+        if (Math.hypot(state.ringX - capX, state.ringY - capY) < 30) state.hooked = true;
     }
 });
 window.addEventListener('mouseup', () => state.dragging = false);
 
+// --- MAIN GAME LOOP ---
 window.onload = () => {
-    init();
-    function loop() { update(); render(); requestAnimationFrame(loop); }
-    loop();
+    init3D();
+    function gameLoop() {
+        updateGameLogic();
+        renderScene();
+        requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
 };
 </script>
 </body>

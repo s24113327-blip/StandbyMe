@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STAND-BY-ME 3D | Night Market</title>
+    <title>STAND-BY-ME 3D | Neon Market</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root { --neon-green: #39ff14; --neon-pink: #ff007f; --neon-blue: #00f2ff; }
-        body { background: #000; color: white; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Courier New', monospace; overflow: hidden; }
-        .arcade-cabinet { background: #1a1a1a; padding: 15px; border: 4px solid #333; border-radius: 12px; box-shadow: 0 0 50px #000; }
-        .main-layout { display: flex; gap: 15px; background: #000; padding: 10px; position: relative;}
-        .canvas-area { position: relative; width: 800px; height: 450px; border: 2px solid #222; }
+        body { background: #050505; color: white; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        .arcade-cabinet { background: #111; padding: 10px; border: 4px solid #222; border-radius: 12px; box-shadow: 0 0 100px #000; }
+        .main-layout { display: flex; gap: 15px; background: #000; padding: 5px; }
+        .canvas-area { position: relative; width: 800px; height: 450px; border: 1px solid #333; }
         #gameCanvas { display: block; }
-        .sidebar { width: 200px; display: flex; flex-direction: column; justify-content: space-between; border-left: 2px solid #222; padding-left: 15px; }
-        .digital { color: var(--neon-green); font-size: 1.2rem; margin: 5px 0; }
-        .timer-bar { width: 100%; height: 10px; background: #222; margin: 10px 0; border: 1px solid #444; }
-        #timerFill { width: 100%; height: 100%; background: var(--neon-pink); transition: width 0.1s linear; }
+        .sidebar { width: 180px; padding: 15px; border-left: 1px solid #222; display: flex; flex-direction: column; justify-content: space-between; }
+        .stat-label { font-size: 0.7rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .digital { color: var(--neon-green); font-family: monospace; font-size: 1.4rem; margin-bottom: 10px; }
+        .timer-container { width: 100%; height: 6px; background: #222; margin: 10px 0; }
+        #timerFill { width: 100%; height: 100%; background: var(--neon-pink); box-shadow: 0 0 10px var(--neon-pink); }
         .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; text-align: center; }
         .hidden { display: none !important; }
-        .arcade-button { background: #ff0055; color: white; border: none; padding: 15px 30px; font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; }
+        .arcade-button { background: transparent; color: white; border: 2px solid var(--neon-blue); padding: 12px 30px; font-weight: bold; cursor: pointer; text-shadow: 0 0 5px var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue); }
+        .arcade-button:hover { background: var(--neon-blue); color: black; }
     </style>
 </head>
 <body>
@@ -29,9 +31,9 @@
             <canvas id="gameCanvas"></canvas>
             
             <div id="tutorialOverlay" class="overlay">
-                <h1 style="color:var(--neon-blue)">STALL #07: BOTTLE STAND</h1>
-                <p>LEVEL <span id="startLevel">1</span></p>
-                <button id="startBtn" class="arcade-button">START</button>
+                <h1 style="color:var(--neon-pink); letter-spacing: 5px;">NIGHT MARKET</h1>
+                <p style="color:#888;">Stand the bottle upright to win.</p>
+                <button id="startBtn" class="arcade-button">START SESSION</button>
             </div>
 
             <div id="gameOverOverlay" class="overlay hidden">
@@ -42,15 +44,16 @@
 
         <div class="sidebar">
             <div>
-                <div style="font-size: 0.7rem; color: #888;">TIME REMAINING</div>
-                <div class="timer-bar"><div id="timerFill"></div></div>
-                <div class="digital">SCORE: <span id="score">0</span></div>
-                <div class="digital">BEST: <span id="bestScore">0</span></div>
+                <span class="stat-label">Time</span>
+                <div class="timer-container"><div id="timerFill"></div></div>
+                <span class="stat-label">Score</span>
+                <div id="score" class="digital">0</div>
+                <span class="stat-label">Stage</span>
+                <div id="level" class="digital" style="color:var(--neon-blue)">1</div>
             </div>
             <div>
-                <div style="font-size: 0.7rem; color: #888;">LIVES</div>
-                <div id="livesDisplay" style="font-size: 1.2rem;">❤️❤️❤️</div>
-                <div class="digital" style="color:var(--neon-blue)">LV: <span id="level">1</span></div>
+                <span class="stat-label">Lives</span>
+                <div id="livesDisplay" style="font-size: 1.2rem; margin-top:5px;">❤️❤️❤️</div>
             </div>
         </div>
     </div>
@@ -59,173 +62,166 @@
 <script>
 // --- CORE CONFIG ---
 const canvas = document.getElementById("gameCanvas");
-let scene, camera, renderer, bottleGroup, ringMesh, ropeLine, tableMesh, floorMesh;
-let lanterns = [], rainParticles;
-let audioCtx = null;
+let scene, camera, renderer, bottleGroup, ringMesh, ropeLine;
+let lanterns = [], clouds = [];
 
 const gameState = {
     paused: true, gameOver: false, hasWon: false,
     level: 1, score: 0, lives: 3,
-    bestScore: localStorage.getItem("standByMeBest") || 0,
-    bottleAngle: 0, bottleBaseX: 400, originalBaseX: 400,
+    bottleAngle: 0, bottleBaseX: 400,
     ringX: 400, ringY: 150, ringVX: 0, ringVY: 0,
     mouseX: 400, mouseY: 50,
     isDragging: false, isHooked: false,
     baseVelocity: 0, timeLeft: 20, maxTime: 20,
     windForce: 0, windTarget: 0,
-    currentPalette: ["#064e3b", "#10b981", "#064e3b"],
-    skins: {
-        1: ["#064e3b", "#10b981", "#064e3b"],
-        5: ["#1e3a8a", "#3b82f6", "#1e3a8a"],
-        10: ["#450a0a", "#ef4444", "#450a0a"]
-    }
+    currentPalette: ["#064e3b", "#10b981"]
 };
 
 function init3D() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020205);
-    scene.fog = new THREE.FogExp2(0x020205, 0.0015);
+    scene.fog = new THREE.Fog(0x020205, 100, 900);
 
     camera = new THREE.PerspectiveCamera(45, 800 / 450, 1, 2000);
-    camera.position.set(0, 50, 550);
+    camera.position.set(0, 80, 500); // Eye-level perspective
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(800, 450);
 
-    // 1. NIGHT MARKET LIGHTING
-    const ambient = new THREE.AmbientLight(0x404040, 0.5);
-    scene.add(ambient);
+    // 1. LIGHTING (Neon Glow)
+    const hemi = new THREE.HemisphereLight(0x444444, 0x000000, 0.6);
+    scene.add(hemi);
 
-    // 2. WET FLOOR (Asphalt)
-    const floorGeo = new THREE.PlaneGeometry(2000, 2000);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.1, metalness: 0.6 });
-    floorMesh = new THREE.Mesh(floorGeo, floorMat);
-    floorMesh.rotation.x = -Math.PI / 2;
-    floorMesh.position.y = -150;
-    scene.add(floorMesh);
+    // 2. WET ASPHALT GROUND
+    const floorGeo = new THREE.PlaneGeometry(3000, 3000);
+    const floorMat = new THREE.MeshStandardMaterial({ 
+        color: 0x080808, roughness: 0.05, metalness: 0.8 
+    });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -150;
+    scene.add(floor);
 
-    // 3. THE TABLE
-    const tableGeo = new THREE.BoxGeometry(600, 15, 200);
-    const tableMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
-    tableMesh = new THREE.Mesh(tableGeo, tableMat);
-    tableMesh.position.y = -80; // Bottle base will rest here
-    scene.add(tableMesh);
+    // 3. STALL STRUCTURE (Back and Sides)
+    const createWall = (w, h, x, z, color) => {
+        const geo = new THREE.BoxGeometry(w, h, 10);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, h/2 - 150, z);
+        scene.add(mesh);
 
-    // 4. THE BOTTLE
+        // Neon Sign on wall
+        const signGeo = new THREE.PlaneGeometry(w*0.8, 10);
+        const signMat = new THREE.MeshBasicMaterial({ color: color });
+        const sign = new THREE.Mesh(signGeo, signMat);
+        sign.position.set(x, h - 140, z + 6);
+        scene.add(sign);
+    };
+    createWall(400, 300, -500, -200, 0xff007f); // Left Stall
+    createWall(400, 300, 500, -200, 0x00f2ff);  // Right Stall
+
+    // 4. THE GAME TABLE
+    const tableGeo = new THREE.BoxGeometry(600, 20, 250);
+    const tableMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.1 });
+    const table = new THREE.Mesh(tableGeo, tableMat);
+    table.position.y = -90;
+    scene.add(table);
+
+    // 5. THE BOTTLE
     bottleGroup = new THREE.Group();
     const bodyGeo = new THREE.CylinderGeometry(20, 24, 130, 32);
     const bodyMat = new THREE.MeshPhysicalMaterial({ 
-        color: gameState.currentPalette[1], 
-        transmission: 0.6, 
-        thickness: 2,
-        emissive: gameState.currentPalette[1],
-        emissiveIntensity: 0.2
+        color: 0x10b981, transmission: 0.5, thickness: 2, roughness: 0
     });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     body.rotation.z = Math.PI / 2;
-    body.position.x = 65; // Pivot offset
+    body.position.x = 65; // Offset so it pivots on base
     bottleGroup.add(body);
     
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 20, 16), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-    cap.rotation.z = Math.PI / 2;
-    cap.position.x = 145;
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 20), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    cap.rotation.z = Math.PI / 2; cap.position.x = 145;
     bottleGroup.add(cap);
-    
     scene.add(bottleGroup);
 
-    // 5. THE RING
+    // 6. THE RING
     ringMesh = new THREE.Mesh(
-        new THREE.TorusGeometry(22, 2.5, 16, 100),
-        new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 1 })
+        new THREE.TorusGeometry(22, 3, 16, 100),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff })
     );
     scene.add(ringMesh);
 
-    // 6. LANTERNS (Atmosphere)
-    for(let i=0; i<8; i++) {
-        const lantern = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 16), new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xff007f : 0x00f2ff }));
-        lantern.position.set(-600 + (i*180), 180, -200);
-        const light = new THREE.PointLight(lantern.material.color, 1.5, 300);
-        light.position.copy(lantern.position);
-        scene.add(lantern, light);
-        lanterns.push(lantern);
-    }
-
-    ropeLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x888888 }));
+    // 7. ROPE
+    ropeLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x666666 }));
     scene.add(ropeLine);
+
+    // 8. LANTERNS
+    for(let i=0; i<6; i++) {
+        const lantern = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 40), new THREE.MeshBasicMaterial({ color: 0xff3300 }));
+        lantern.position.set(-450 + (i*180), 220, -100);
+        scene.add(lantern);
+        lanterns.push(lantern);
+        const pLight = new THREE.PointLight(0xff3300, 1, 300);
+        pLight.position.copy(lantern.position);
+        scene.add(pLight);
+    }
 }
 
-// --- PHYSICS ENGINE ---
 function updatePhysics() {
     if (gameState.paused || gameState.gameOver) return;
     const now = performance.now();
     const dt = (now - (gameState.lastTime || now)) / 1000;
     gameState.lastTime = now;
 
-    if (!gameState.hasWon) {
-        // TIMER RESTORED
-        gameState.timeLeft -= dt;
-        document.getElementById("timerFill").style.width = (gameState.timeLeft / gameState.maxTime * 100) + "%";
-        if (gameState.timeLeft <= 0) loseLife("TIME'S UP!");
+    gameState.timeLeft -= dt;
+    document.getElementById("timerFill").style.width = (gameState.timeLeft / gameState.maxTime * 100) + "%";
+    if (gameState.timeLeft <= 0) loseLife("TIME EXPIRED");
 
-        // SWING LOGIC
-        gameState.ringVX += (gameState.mouseX - gameState.ringX) * 0.05 + (gameState.windForce * 20);
-        gameState.ringVY += (gameState.mouseY - gameState.ringY) * 0.05 + 0.8;
-        gameState.ringX += gameState.ringVX;
-        gameState.ringY += gameState.ringVY;
-        gameState.ringVX *= 0.92;
-        gameState.ringVY *= 0.92;
+    // RING SWING
+    gameState.ringVX += (gameState.mouseX - gameState.ringX) * 0.05 + (gameState.windForce * 20);
+    gameState.ringVY += (gameState.mouseY - gameState.ringY) * 0.05 + 0.8;
+    gameState.ringX += gameState.ringVX;
+    gameState.ringY += gameState.ringVY;
+    gameState.ringVX *= 0.92; gameState.ringVY *= 0.92;
 
-        const capX = gameState.bottleBaseX + Math.cos(gameState.bottleAngle) * 170;
-        const capY = 350 + Math.sin(gameState.bottleAngle) * 170;
+    const capX = gameState.bottleBaseX + Math.cos(gameState.bottleAngle) * 170;
+    const capY = 350 + Math.sin(gameState.bottleAngle) * 170;
 
-        if (gameState.isHooked) {
-            if (Math.hypot(gameState.ringX - capX, gameState.ringY - capY) > 95) {
-                gameState.isHooked = false;
-            } else {
-                // Fixed Rotation: Tiling toward ring
-                const targetAngle = Math.atan2(gameState.ringY - 350, gameState.ringX - gameState.bottleBaseX);
-                gameState.bottleAngle += (targetAngle - gameState.bottleAngle) * 0.15;
-                gameState.baseVelocity += (gameState.ringX - capX) * 0.05;
-            }
+    if (gameState.isHooked) {
+        if (Math.hypot(gameState.ringX - capX, gameState.ringY - capY) > 95) {
+            gameState.isHooked = false;
         } else {
-            const grav = 0.06 + (gameState.level * 0.005);
-            if (gameState.bottleAngle < 0) gameState.bottleAngle += grav;
-            if (gameState.bottleAngle < -0.7) { loseLife("TOPPLED!"); return; }
-            if (gameState.bottleAngle > 0) gameState.bottleAngle = 0;
-            gameState.baseVelocity += (400 - gameState.bottleBaseX) * 0.04;
+            // FIXED ROTATION (Tilts towards ring)
+            const targetAngle = Math.atan2(gameState.ringY - 350, gameState.ringX - gameState.bottleBaseX);
+            gameState.bottleAngle += (targetAngle - gameState.bottleAngle) * 0.15;
+            gameState.baseVelocity += (gameState.ringX - capX) * 0.05;
         }
-
-        gameState.bottleBaseX += gameState.baseVelocity;
-        gameState.baseVelocity *= 0.95;
-
-        if (gameState.bottleBaseX < 100 || gameState.bottleBaseX > 700) loseLife("FELL OFF!");
-
-        // Wind Logic
-        if (gameState.level >= 2) {
-            if (Math.random() > 0.97) gameState.windTarget = (Math.random() - 0.5) * (0.1 + gameState.level * 0.02);
-            gameState.windForce += (gameState.windTarget - gameState.windForce) * 0.05;
-        }
+    } else {
+        const grav = 0.06 + (gameState.level * 0.005);
+        if (gameState.bottleAngle < 0) gameState.bottleAngle += grav;
+        if (gameState.bottleAngle < -0.7) { loseLife("BOTTLE FELL"); return; }
+        if (gameState.bottleAngle > 0) gameState.bottleAngle = 0;
+        gameState.baseVelocity += (400 - gameState.bottleBaseX) * 0.04;
     }
+
+    gameState.bottleBaseX += gameState.baseVelocity;
+    gameState.baseVelocity *= 0.95;
+
+    if (gameState.bottleBaseX < 110 || gameState.bottleBaseX > 690) loseLife("SLID OFF");
 }
 
 function drawGame() {
-    // SYNC BOTTLE POSITION (RESTING ON TABLE)
+    // Correcting bottle position relative to table surface
     bottleGroup.position.x = gameState.bottleBaseX - 400;
-    bottleGroup.position.y = -72; // Sitting precisely on the table surface
+    bottleGroup.position.y = -80; 
     
-    // SYNC ROTATION (Correct direction)
+    // Correcting Rotation Mapping
     bottleGroup.rotation.z = gameState.bottleAngle;
     
-    // UPDATE SKIN COLOR
-    bottleGroup.children[0].material.color.set(gameState.currentPalette[1]);
-    bottleGroup.children[0].material.emissive.set(gameState.currentPalette[1]);
-
-    // SYNC RING
+    // Ring and Rope
     ringMesh.position.x = gameState.ringX - 400;
     ringMesh.position.y = -(gameState.ringY - 225);
     ringMesh.material.emissiveIntensity = gameState.isHooked ? 3 : 0.5;
 
-    // ROPE
     const curve = new THREE.QuadraticBezierCurve3(
         new THREE.Vector3(0, 225, 0),
         new THREE.Vector3(gameState.windForce * 500, 100, 0),
@@ -234,18 +230,15 @@ function drawGame() {
     ropeLine.geometry.dispose();
     ropeLine.geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(20));
 
-    // ANIMATE LANTERNS
-    lanterns.forEach((l, i) => {
-        l.position.y = 180 + Math.sin(Date.now() * 0.002 + i) * 10;
-    });
+    // Subtle Lantern Anims
+    lanterns.forEach((l, i) => l.position.y = 220 + Math.sin(Date.now()*0.001 + i)*5);
 
     renderer.render(scene, camera);
 }
 
-// --- UTILS ---
 function loseLife(reason) {
     gameState.lives--;
-    updateUI();
+    document.getElementById("livesDisplay").textContent = "❤️".repeat(gameState.lives);
     if (gameState.lives <= 0) {
         document.getElementById("gameOverOverlay").classList.remove("hidden");
         document.getElementById("deathReason").textContent = reason;
@@ -258,36 +251,30 @@ function resetPositions() {
     gameState.bottleBaseX = 400; gameState.bottleAngle = 0;
     gameState.ringX = 400; gameState.ringY = 150;
     gameState.isHooked = false; gameState.timeLeft = 20;
-}
-
-function updateUI() {
-    document.getElementById("score").textContent = gameState.score;
-    document.getElementById("level").textContent = gameState.level;
-    document.getElementById("livesDisplay").textContent = "❤️".repeat(gameState.lives);
-    
-    // SKIN LOGIC
-    if (gameState.level >= 10) gameState.currentPalette = gameState.skins[10];
-    else if (gameState.level >= 5) gameState.currentPalette = gameState.skins[5];
-    else gameState.currentPalette = gameState.skins[1];
+    gameState.ringVX = 0; gameState.ringVY = 0;
 }
 
 function checkWin() {
     if (gameState.hasWon || gameState.gameOver || gameState.paused) return;
     if (gameState.bottleAngle <= -1.48 && Math.abs(gameState.baseVelocity) < 0.2) {
         gameState.hasWon = true; gameState.score += 100;
-        updateUI();
-        setTimeout(() => { gameState.level++; gameState.hasWon = false; resetPositions(); updateUI(); }, 1500);
+        document.getElementById("score").textContent = gameState.score;
+        setTimeout(() => { 
+            gameState.level++; 
+            document.getElementById("level").textContent = gameState.level;
+            gameState.hasWon = false; 
+            resetPositions(); 
+        }, 1500);
     }
 }
 
-// --- INPUTS ---
+// INPUTS
 canvas.addEventListener('mousedown', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (800 / rect.width);
     const y = (e.clientY - rect.top) * (450 / rect.height);
     if (Math.hypot(x - gameState.ringX, y - gameState.ringY) < 60) gameState.isDragging = true;
 });
-
 window.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     gameState.mouseX = (e.clientX - rect.left) * (800 / rect.width);
@@ -295,9 +282,7 @@ window.addEventListener('mousemove', (e) => {
     if (gameState.isDragging && !gameState.isHooked) {
         const capX = gameState.bottleBaseX + Math.cos(gameState.bottleAngle) * 170;
         const capY = 350 + Math.sin(gameState.bottleAngle) * 170;
-        if (Math.hypot(gameState.ringX - capX, gameState.ringY - capY) < 30) {
-            gameState.isHooked = true;
-        }
+        if (Math.hypot(gameState.ringX - capX, gameState.ringY - capY) < 30) gameState.isHooked = true;
     }
 });
 window.addEventListener('mouseup', () => gameState.isDragging = false);
@@ -305,12 +290,7 @@ window.addEventListener('mouseup', () => gameState.isDragging = false);
 document.getElementById("startBtn").onclick = () => { gameState.paused = false; document.getElementById("tutorialOverlay").classList.add("hidden"); };
 document.getElementById("restartBtn").onclick = () => { location.reload(); };
 
-window.onload = () => {
-    init3D();
-    updateUI();
-    const loop = () => { updatePhysics(); checkWin(); drawGame(); requestAnimationFrame(loop); };
-    loop();
-};
+window.onload = () => { init3D(); const loop = () => { updatePhysics(); checkWin(); drawGame(); requestAnimationFrame(loop); }; loop(); };
 </script>
 </body>
 </html>
